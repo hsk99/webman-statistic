@@ -1,0 +1,13 @@
+{
+	"name": "hsk99/webman-statistic",
+	"type": "library",
+	"license": "MIT",
+	"require": {
+		"php": ">=7.2"
+	},
+	"autoload": {
+		"psr-4": {
+			"Hsk99\\WebmanStatistic\\": "src"
+		}
+	}
+}
