@@ -10,7 +10,7 @@ class ThinkOrm implements Bootstrap
 {
     public static function start($worker)
     {
-        if (!config('plugin.hsk99.statistic.app.sql_report', 'false')) {
+        if (!config('plugin.hsk99.statistic.app.sql_report', false)) {
             return;
         }
 
