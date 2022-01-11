@@ -1,6 +1,6 @@
 <?php
 
-namespace support\bootstrap;
+namespace Hsk99\WebmanStatistic;
 
 use Webman\Bootstrap;
 use think\facade\Db;
