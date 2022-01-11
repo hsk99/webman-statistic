@@ -1,6 +1,7 @@
 <?php
 return [
-    'enable'  => true,
-    'project' => 'webman',
-    'address' => 'udp://127.0.0.1:8789',
+    'enable'     => true,
+    'project'    => 'webman',
+    'sql_report' => false,
+    'address'    => 'udp://127.0.0.1:8789',
 ];
