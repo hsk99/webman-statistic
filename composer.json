@@ -10,9 +10,7 @@
 			"homepage": "http://hsk99.com.cn"
 		}
 	],
-	"require": {
-		"workerman/webman-framework": "^1.2.1"
-	},
+	"require": {},
 	"autoload": {
 		"psr-4": {
 			"Hsk99\\WebmanStatistic\\": "src"
