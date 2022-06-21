@@ -1,5 +1,5 @@
 <?php
 
 return [
-    Hsk99\WebmanStatistic\ThinkOrm::class,
+    Hsk99\WebmanStatistic\Bootstrap::class,
 ];

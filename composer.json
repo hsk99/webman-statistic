@@ -6,11 +6,13 @@
 	"authors": [
 		{
 			"name": "hsk99",
-			"email": "3024186605@qq.com",
+			"email": "hsk@hsk99.com.cn",
 			"homepage": "http://hsk99.com.cn"
 		}
 	],
-	"require": {},
+	"require": {
+		"workerman/http-client": "^1.0"
+	},
 	"autoload": {
 		"psr-4": {
 			"Hsk99\\WebmanStatistic\\": "src"

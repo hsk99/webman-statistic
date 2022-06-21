@@ -2,6 +2,6 @@
 
 return [
     '' => [
-        Hsk99\WebmanStatistic\Statistic::class,
+        Hsk99\WebmanStatistic\Middleware::class,
     ]
 ];
