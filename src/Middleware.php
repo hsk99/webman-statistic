@@ -15,11 +15,6 @@ class Middleware implements \Webman\MiddlewareInterface
     public $redisLogs = [];
 
     /**
-     * @var string
-     */
-    public $dataCache = '';
-
-    /**
      * @author HSK
      * @date 2022-06-17 15:37:46
      *
@@ -98,35 +93,6 @@ class Middleware implements \Webman\MiddlewareInterface
                 }
             }
 
-            \Workerman\Timer::add(config('plugin.hsk99.statistic.app.interval', 30), function () {
-                if (0 === strlen($this->dataCache)) {
-                    return;
-                }
-                try {
-                    \Hsk99\WebmanStatistic\Bootstrap::instance()->request(
-                        config('plugin.hsk99.statistic.app.address'),
-                        [
-                            'method' => 'POST',
-                            'version' => '1.1',
-                            'headers' => [
-                                'Connection'    => 'keep-alive',
-                                'authorization' => config('plugin.hsk99.statistic.app.authorization', md5(date('Y')))
-                            ],
-                            'data' => [
-                                'transfer' => $this->dataCache
-                            ],
-                            'success' => function ($response) {
-                            },
-                            'error' => function ($exception) {
-                            }
-                        ]
-                    );
-                } catch (\Throwable $th) {
-                }
-
-                $this->dataCache = '';
-            });
-
             $initialized = true;
         }
 
@@ -163,7 +129,7 @@ class Middleware implements \Webman\MiddlewareInterface
         $this->sqlLogs = [];
         $this->redisLogs = [];
 
-        $this->dataCache .= json_encode([
+        \Hsk99\WebmanStatistic\Statistic::$transfer .= json_encode([
             'time'     => date('Y-m-d H:i:s.', (int)$startTime) . substr($startTime, 11),
             'project'  => $project,
             'ip'       => $ip,
@@ -174,30 +140,8 @@ class Middleware implements \Webman\MiddlewareInterface
             'details'  => json_encode($details, 320),
         ], 320) . "\n";
 
-        if (strlen($this->dataCache) > 1024 * 1024) {
-            try {
-                \Hsk99\WebmanStatistic\Bootstrap::instance()->request(
-                    config('plugin.hsk99.statistic.app.address'),
-                    [
-                        'method' => 'POST',
-                        'version' => '1.1',
-                        'headers' => [
-                            'Connection'    => 'keep-alive',
-                            'authorization' => config('plugin.hsk99.statistic.app.authorization', md5(date('Y')))
-                        ],
-                        'data' => [
-                            'transfer' => $this->dataCache
-                        ],
-                        'success' => function ($response) {
-                        },
-                        'error' => function ($exception) {
-                        }
-                    ]
-                );
-            } catch (\Throwable $th) {
-            }
-
-            $this->dataCache = '';
+        if (strlen(\Hsk99\WebmanStatistic\Statistic::$transfer) > 1024 * 1024) {
+            \Hsk99\WebmanStatistic\Statistic::report();
         }
 
         return $response;

@@ -27,6 +27,14 @@ class Bootstrap implements \Webman\Bootstrap
                 'timeout'           => 30,  // 等待响应的超时时间
             ];
             self::$_instance = new \Workerman\Http\Client($options);
+
+            \Workerman\Timer::add(config('plugin.hsk99.statistic.app.interval', 30), function () {
+                \Hsk99\WebmanStatistic\Statistic::report();
+            });
+
+            $worker->onWorkerStop = function () {
+                \Hsk99\WebmanStatistic\Statistic::report();
+            };
         }
     }
 
