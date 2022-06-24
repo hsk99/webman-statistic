@@ -86,7 +86,19 @@ class Middleware implements \Webman\MiddlewareInterface
                     }
                     try {
                         \support\Redis::connection($key)->listen(function (\Illuminate\Redis\Events\CommandExecuted $command) use ($key) {
-                            $this->redisLogs[] = "[connection:$key] Redis::{$command->command}('" . implode('\', \'', $command->parameters) . "') [ RunTime: {$command->time} ms ]";
+                            $parameters = array_map(function ($item) {
+                                if (is_array($item)) {
+                                    return json_encode($item, 320);
+                                }
+                                return $item;
+                            }, $command->parameters);
+                            $parameters = implode('\', \'', $parameters);
+
+                            if ('get' === $command->command && 'ping' === $parameters) {
+                                return;
+                            }
+
+                            $this->redisLogs[] = "[connection:$key] Redis::{$command->command}('" . $parameters . "') [ RunTime: {$command->time} ms ]";
                         });
                     } catch (\Throwable $e) {
                     }
