@@ -45,10 +45,10 @@ class Middleware implements \Webman\MiddlewareInterface
         if (!$initialized) {
             if (class_exists(\think\facade\Db::class)) {
                 \think\facade\Db::listen(function ($sql, $runtime, $master) {
-                    if ($sql === 'select 1') {
+                    if ($sql === 'select 1' || !is_numeric($runtime)) {
                         return;
                     }
-                    $this->sqlLogs[] = trim($sql) . " [ RunTime:{$runtime}s ]";
+                    $this->sqlLogs[] = trim($sql) . " [ RunTime: " . $runtime * 1000 . " ms ]";
                 });
             }
 
@@ -72,7 +72,7 @@ class Middleware implements \Webman\MiddlewareInterface
                                 }
                             }
                             $log = vsprintf($sql, $query->bindings);
-                            $this->sqlLogs[] = "[driver:$driver] [connection:$key] $log [ RunTime:" . ($query->time / 1000) . "s ]";
+                            $this->sqlLogs[] = "[driver:$driver] [connection:$key] $log [ RunTime: {$query->time} ms ]";
                         });
                     } catch (\Throwable $e) {
                     }
@@ -86,7 +86,7 @@ class Middleware implements \Webman\MiddlewareInterface
                     }
                     try {
                         \support\Redis::connection($key)->listen(function (\Illuminate\Redis\Events\CommandExecuted $command) use ($key) {
-                            $this->redisLogs[] = "[connection:$key] Redis::{$command->command}('" . implode('\', \'', $command->parameters) . "') ({$command->time} ms)\r\n";
+                            $this->redisLogs[] = "[connection:$key] Redis::{$command->command}('" . implode('\', \'', $command->parameters) . "') [ RunTime: {$command->time} ms ]";
                         });
                     } catch (\Throwable $e) {
                     }

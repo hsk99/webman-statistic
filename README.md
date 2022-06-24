@@ -14,3 +14,8 @@
 ## 配置
 
 修改 ` config/plugin/hsk99/statistic/app.php ` 文件，设置相关参数
+
+
+## 注意
+
+` illuminate/database ` 、` illuminate/redis ` 日志需要安装 ` composer require illuminate/events `
