@@ -22,6 +22,7 @@ Route::fallback(function ($request) use (&$oldFallback) {
 
     switch (true) {
         case method_exists($response, 'exception') && $exception = $response->exception():
+            \Hsk99\WebmanStatistic\Statistic::exception($exception);
             $body = (string)$exception;
             break;
         case 'application/json' === strtolower($response->getHeader('Content-Type')):

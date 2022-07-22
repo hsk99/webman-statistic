@@ -53,29 +53,26 @@ class Middleware implements \Webman\MiddlewareInterface
             }
 
             if (class_exists(\Illuminate\Database\Events\QueryExecuted::class)) {
-                foreach (config('database.connections', []) as $key => $config) {
-                    $driver = $config['driver'] ?? 'mysql';
-                    try {
-                        \support\Db::connection($key)->listen(function (\Illuminate\Database\Events\QueryExecuted $query) use ($key, $driver) {
-                            $sql = trim($query->sql);
-                            if (strtolower($sql) === 'select 1') {
-                                return;
-                            }
-                            $sql = str_replace("?", "%s", $sql);
-                            foreach ($query->bindings as $i => $binding) {
-                                if ($binding instanceof \DateTime) {
-                                    $query->bindings[$i] = $binding->format("'Y-m-d H:i:s'");
-                                } else {
-                                    if (is_string($binding)) {
-                                        $query->bindings[$i] = "'$binding'";
-                                    }
+                try {
+                    \support\Db::listen(function (\Illuminate\Database\Events\QueryExecuted $query) {
+                        $sql = trim($query->sql);
+                        if (strtolower($sql) === 'select 1') {
+                            return;
+                        }
+                        $sql = str_replace("?", "%s", $sql);
+                        foreach ($query->bindings as $i => $binding) {
+                            if ($binding instanceof \DateTime) {
+                                $query->bindings[$i] = $binding->format("'Y-m-d H:i:s'");
+                            } else {
+                                if (is_string($binding)) {
+                                    $query->bindings[$i] = "'$binding'";
                                 }
                             }
-                            $log = vsprintf($sql, $query->bindings);
-                            $this->sqlLogs[] = "[driver:$driver] [connection:$key] $log [ RunTime: {$query->time} ms ]";
-                        });
-                    } catch (\Throwable $e) {
-                    }
+                        }
+                        $log = vsprintf($sql, $query->bindings);
+                        $this->sqlLogs[] = "[connection:{$query->connectionName}] $log [ RunTime: {$query->time} ms ]";
+                    });
+                } catch (\Throwable $e) {
                 }
             }
 
@@ -85,7 +82,7 @@ class Middleware implements \Webman\MiddlewareInterface
                         continue;
                     }
                     try {
-                        \support\Redis::connection($key)->listen(function (\Illuminate\Redis\Events\CommandExecuted $command) use ($key) {
+                        \support\Redis::connection($key)->listen(function (\Illuminate\Redis\Events\CommandExecuted $command) {
                             $parameters = array_map(function ($item) {
                                 if (is_array($item)) {
                                     return json_encode($item, 320);
@@ -98,7 +95,7 @@ class Middleware implements \Webman\MiddlewareInterface
                                 return;
                             }
 
-                            $this->redisLogs[] = "[connection:$key] Redis::{$command->command}('" . $parameters . "') [ RunTime: {$command->time} ms ]";
+                            $this->redisLogs[] = "[connection:{$command->connectionName}] Redis::{$command->command}('" . $parameters . "') [ RunTime: {$command->time} ms ]";
                         });
                     } catch (\Throwable $e) {
                     }
@@ -110,6 +107,7 @@ class Middleware implements \Webman\MiddlewareInterface
 
         switch (true) {
             case method_exists($response, 'exception') && $exception = $response->exception():
+                \Hsk99\WebmanStatistic\Statistic::exception($exception);
                 $body = (string)$exception;
                 break;
             case 'application/json' === strtolower($response->getHeader('Content-Type')):
