@@ -22,6 +22,11 @@ class Statistic
     public static function report()
     {
         try {
+            if (!config('plugin.hsk99.statistic.app.enable')) {
+                static::$transfer = '';
+                return;
+            }
+
             if (0 === strlen(static::$transfer)) {
                 return;
             }
@@ -47,6 +52,7 @@ class Statistic
 
             static::$transfer = '';
         } catch (\Throwable $th) {
+            static::$transfer = '';
         }
     }
 
@@ -64,6 +70,10 @@ class Statistic
     public static function exception($exception, $extra = [])
     {
         try {
+            if (!config('plugin.hsk99.statistic.app.enable')) {
+                return;
+            }
+
             $time    = microtime(true);
             $details = [
                 'time'      => date('Y-m-d H:i:s.', (int)$time) . substr($time, 11),
@@ -116,6 +126,10 @@ class Statistic
     public static function sql(string $sql, float $runtime, $extra = [])
     {
         try {
+            if (!config('plugin.hsk99.statistic.app.enable')) {
+                return;
+            }
+
             $time    = microtime(true);
             $details = [
                 'time'     => date('Y-m-d H:i:s.', (int)$time) . substr($time, 11),
@@ -172,6 +186,10 @@ class Statistic
     public static function redis(string $command, string $parameters, float $runtime, $extra = [])
     {
         try {
+            if (!config('plugin.hsk99.statistic.app.enable')) {
+                return;
+            }
+
             $time    = microtime(true);
             $details = [
                 'time'     => date('Y-m-d H:i:s.', (int)$time) . substr($time, 11),
