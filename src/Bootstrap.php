@@ -44,11 +44,6 @@ class Bootstrap implements \Webman\Bootstrap
 
             // 执行监听所有进程 SQL、Redis
             static::listen($worker);
-
-            // 延迟接管进程业务回调，执行监控
-            \Workerman\Timer::add(1, function () use (&$worker) {
-                static::monitor($worker);
-            }, '', false);
         }
     }
 
@@ -130,58 +125,6 @@ class Bootstrap implements \Webman\Bootstrap
                 } catch (\Throwable $e) {
                 }
             }
-        }
-    }
-
-    /**
-     * 监控进程
-     *
-     * @author HSK
-     * @date 2022-07-21 13:17:14
-     *
-     * @param \Workerman\Worker $worker
-     *
-     * @return void
-     */
-    protected static function monitor(\Workerman\Worker $worker)
-    {
-        // 接管所有进程 onWorkerStop 回调，上报缓存数据
-        $oldWorkerStop = $worker->onWorkerStop;
-        $worker->onWorkerStop = function ($worker) use (&$oldWorkerStop) {
-            Statistic::report();
-
-            try {
-                if (is_callable($oldWorkerStop)) {
-                    call_user_func($oldWorkerStop, $worker);
-                }
-            } catch (\Throwable $exception) {
-            } catch (\Exception $exception) {
-            } catch (\Error $exception) {
-            } finally {
-                if (isset($exception)) {
-                    echo $exception . PHP_EOL;
-                }
-            }
-        };
-
-        // 接管自定义进程 onMessage 回调，监控其异常抛出
-        if (config('server.listen') !== $worker->getSocketName()) {
-            $oldMessage = $worker->onMessage;
-            $worker->onMessage = function ($connection, $message) use (&$oldMessage) {
-                try {
-                    if (is_callable($oldMessage)) {
-                        call_user_func($oldMessage, $connection, $message);
-                    }
-                } catch (\Throwable $exception) {
-                } catch (\Exception $exception) {
-                } catch (\Error $exception) {
-                } finally {
-                    if (isset($exception)) {
-                        Statistic::exception($exception);
-                        echo $exception . PHP_EOL;
-                    }
-                }
-            };
         }
     }
 }
