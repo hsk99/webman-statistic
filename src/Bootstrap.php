@@ -43,7 +43,9 @@ class Bootstrap implements \Webman\Bootstrap
             });
 
             // 执行监听所有进程 SQL、Redis
-            static::listen($worker);
+            if (config('plugin.hsk99.statistic.app.global_monitor', false)) {
+                static::listen($worker);
+            }
         }
     }
 
