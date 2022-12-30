@@ -48,6 +48,12 @@ class Middleware implements \Webman\MiddlewareInterface
                     if ($sql === 'select 1' || !is_numeric($runtime)) {
                         return;
                     }
+
+                    // 兼容 webman/log 插件记录Sql日志
+                    if (class_exists(\Webman\Log\Middleware::class) && config('plugin.webman.log.app.enable', false)) {
+                        \think\facade\Db::log($sql . " [$master RunTime: " . $runtime * 1000 . " ms]");
+                    }
+
                     $this->sqlLogs[] = trim($sql) . " [ RunTime: " . $runtime * 1000 . " ms ]";
                 });
             }
@@ -69,7 +75,11 @@ class Middleware implements \Webman\MiddlewareInterface
                                 }
                             }
                         }
-                        $log = vsprintf($sql, $query->bindings);
+                        $log = $sql;
+                        try {
+                            $log = vsprintf($sql, $query->bindings);
+                        } catch (\Throwable $e) {
+                        }
                         $this->sqlLogs[] = "[connection:{$query->connectionName}] $log [ RunTime: {$query->time} ms ]";
                     });
                 } catch (\Throwable $e) {
@@ -83,19 +93,12 @@ class Middleware implements \Webman\MiddlewareInterface
                     }
                     try {
                         \support\Redis::connection($key)->listen(function (\Illuminate\Redis\Events\CommandExecuted $command) {
-                            $parameters = array_map(function ($item) {
+                            foreach ($command->parameters as &$item) {
                                 if (is_array($item)) {
-                                    return json_encode($item, 320);
+                                    $item = implode('\', \'', $item);
                                 }
-                                return $item;
-                            }, $command->parameters);
-                            $parameters = implode('\', \'', $parameters);
-
-                            if ('get' === $command->command && 'ping' === $parameters) {
-                                return;
                             }
-
-                            $this->redisLogs[] = "[connection:{$command->connectionName}] Redis::{$command->command}('" . $parameters . "') [ RunTime: {$command->time} ms ]";
+                            $this->redisLogs[] = "[connection:{$command->connectionName}] Redis::{$command->command}('" . implode('\', \'', $command->parameters) . "') ({$command->time} ms)";
                         });
                     } catch (\Throwable $e) {
                     }

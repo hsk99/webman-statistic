@@ -98,8 +98,12 @@ class Bootstrap implements \Webman\Bootstrap
                             }
                         }
                     }
-                    $sql = vsprintf($sql, $query->bindings);
-                    Statistic::sql($sql, $query->time, ['connection' => $query->connectionName]);
+                    $log = $sql;
+                    try {
+                        $log = vsprintf($sql, $query->bindings);
+                    } catch (\Throwable $e) {
+                    }
+                    Statistic::sql($log, $query->time, ['connection' => $query->connectionName]);
                 });
             } catch (\Throwable $e) {
             }
@@ -112,17 +116,12 @@ class Bootstrap implements \Webman\Bootstrap
                 }
                 try {
                     \support\Redis::connection($key)->listen(function (\Illuminate\Redis\Events\CommandExecuted $command) {
-                        $parameters = array_map(function ($item) {
+                        foreach ($command->parameters as &$item) {
                             if (is_array($item)) {
-                                return json_encode($item, 320);
+                                $item = implode('\', \'', $item);
                             }
-                            return $item;
-                        }, $command->parameters);
-                        $parameters = implode('\', \'', $parameters);
-                        if ('get' === $command->command && 'ping' === $parameters) {
-                            return;
                         }
-                        Statistic::redis($command->command, $parameters, $command->time, ['connection' => $command->connectionName]);
+                        Statistic::redis($command->command, implode('\', \'', $command->parameters), $command->time, ['connection' => $command->connectionName]);
                     });
                 } catch (\Throwable $e) {
                 }
