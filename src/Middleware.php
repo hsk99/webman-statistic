@@ -98,6 +98,9 @@ class Middleware implements \Webman\MiddlewareInterface
                                     $item = implode('\', \'', $item);
                                 }
                             }
+                            if ("Redis::get('ping')" === "Redis::{$command->command}('" . implode('\', \'', $command->parameters) . "')") {
+                                return;
+                            }
                             $this->redisLogs[] = "[connection:{$command->connectionName}] Redis::{$command->command}('" . implode('\', \'', $command->parameters) . "') ({$command->time} ms)";
                         });
                     } catch (\Throwable $e) {
@@ -122,6 +125,7 @@ class Middleware implements \Webman\MiddlewareInterface
         }
 
         $code    = $response->getStatusCode();
+        $code    = is_int($code) ? $code : 500;
         $success = $code < 400;
         $details = [
             'time'            => date('Y-m-d H:i:s.', (int)$startTime) . substr($startTime, 11),   // 请求时间（包含毫秒时间）
