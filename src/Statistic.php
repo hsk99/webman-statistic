@@ -3,13 +3,38 @@
 namespace Hsk99\WebmanStatistic;
 
 use Hsk99\WebmanStatistic\Bootstrap;
+use PhpMyAdmin\SqlParser\Parser;
+use PhpMyAdmin\SqlParser\Utils\Query;
 
 class Statistic
 {
     /**
      * @var string
      */
-    public static $transfer = '';
+    protected static $_transferCache = null;
+
+    /**
+     * 设置上报数据
+     *
+     * @author HSK
+     * @date 2023-02-08 10:43:27
+     *
+     * @param string $transfer
+     *
+     * @return void
+     */
+    public static function setTransfer(string $transfer)
+    {
+        if (!config('plugin.hsk99.statistic.app.enable')) {
+            return;
+        }
+
+        static::$_transferCache .= $transfer . "\n";
+
+        if (strlen(static::$_transferCache) > 1024 * 1024) {
+            static::report();
+        }
+    }
 
     /**
      * 数据上报
@@ -23,11 +48,11 @@ class Statistic
     {
         try {
             if (!config('plugin.hsk99.statistic.app.enable')) {
-                static::$transfer = '';
+                static::$_transferCache = null;
                 return;
             }
 
-            if (0 === strlen(static::$transfer)) {
+            if (0 === strlen(static::$_transferCache)) {
                 return;
             }
 
@@ -41,7 +66,7 @@ class Statistic
                         'authorization' => config('plugin.hsk99.statistic.app.authorization', md5(date('Y')))
                     ],
                     'data' => [
-                        'transfer' => static::$transfer
+                        'transfer' => static::$_transferCache
                     ],
                     'success' => function ($response) {
                     },
@@ -50,9 +75,9 @@ class Statistic
                 ]
             );
 
-            static::$transfer = '';
+            static::$_transferCache = null;
         } catch (\Throwable $th) {
-            static::$transfer = '';
+            static::$_transferCache = null;
         }
     }
 
@@ -93,7 +118,7 @@ class Statistic
                 $transfer = Bootstrap::$process . ' ' . md5($exception);
             }
 
-            static::$transfer .= json_encode([
+            static::setTransfer(json_encode([
                 'time'     => date('Y-m-d H:i:s.', (int)$time) . substr($time, 11),
                 'project'  => config('plugin.hsk99.statistic.app.project') . "-Exception",
                 'ip'       => '127.0.0.1',
@@ -102,11 +127,7 @@ class Statistic
                 'success'  => 0,
                 'code'     => $code,
                 'details'  => json_encode($details, 320),
-            ], 320) . "\n";
-
-            if (strlen(static::$transfer) > 1024 * 1024) {
-                static::report();
-            }
+            ], 320));
         } catch (\Throwable $th) {
         }
     }
@@ -139,9 +160,9 @@ class Statistic
             ] + $extra;
 
             try {
-                $parser = new \PhpMyAdmin\SqlParser\Parser($sql);
-                $flags = \PhpMyAdmin\SqlParser\Utils\Query::getFlags($parser->statements[0]);
-                $tables = \PhpMyAdmin\SqlParser\Utils\Query::getTables($parser->statements[0]);
+                $parser = new Parser($sql);
+                $flags = Query::getFlags($parser->statements[0]);
+                $tables = Query::getTables($parser->statements[0]);
 
                 if ('SHOW' === $flags['querytype']) {
                     $transfer = Bootstrap::$process . ' ' . $sql;
@@ -152,7 +173,7 @@ class Statistic
                 $transfer = Bootstrap::$process . ' ' . md5($sql);
             }
 
-            static::$transfer .= json_encode([
+            static::setTransfer(json_encode([
                 'time'     => date('Y-m-d H:i:s.', (int)$time) . substr($time, 11),
                 'project'  => config('plugin.hsk99.statistic.app.project') . "-SQL",
                 'ip'       => '127.0.0.1',
@@ -161,11 +182,7 @@ class Statistic
                 'success'  => 1,
                 'code'     => 3306,
                 'details'  => json_encode($details, 320),
-            ], 320) . "\n";
-
-            if (strlen(static::$transfer) > 1024 * 1024) {
-                static::report();
-            }
+            ], 320));
         } catch (\Throwable $th) {
         }
     }
@@ -198,7 +215,7 @@ class Statistic
                 'run_time' => $runtime . " ms"
             ] + $extra;
 
-            static::$transfer .= json_encode([
+            static::setTransfer(json_encode([
                 'time'     => date('Y-m-d H:i:s.', (int)$time) . substr($time, 11),
                 'project'  => config('plugin.hsk99.statistic.app.project') . "-Redis",
                 'ip'       => '127.0.0.1',
@@ -207,11 +224,7 @@ class Statistic
                 'success'  => 1,
                 'code'     => 6379,
                 'details'  => json_encode($details, 320),
-            ], 320) . "\n";
-
-            if (strlen(static::$transfer) > 1024 * 1024) {
-                static::report();
-            }
+            ], 320));
         } catch (\Throwable $th) {
         }
     }

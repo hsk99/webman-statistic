@@ -2,7 +2,17 @@
 
 namespace Hsk99\WebmanStatistic;
 
-class Middleware implements \Webman\MiddlewareInterface
+use Webman\MiddlewareInterface;
+use Webman\Http\Request;
+use Webman\Http\Response;
+use think\facade\Db as ThinkDb;
+use support\Db as LaravelDb;
+use Illuminate\Database\Events\QueryExecuted;
+use support\Redis;
+use Illuminate\Redis\Events\CommandExecuted;
+use Hsk99\WebmanStatistic\Statistic;
+
+class Middleware implements MiddlewareInterface
 {
     /**
      * @var array
@@ -18,12 +28,12 @@ class Middleware implements \Webman\MiddlewareInterface
      * @author HSK
      * @date 2022-06-17 15:37:46
      *
-     * @param \Webman\Http\Request $request
+     * @param Request $request
      * @param callable $next
      *
-     * @return \Webman\Http\Response
+     * @return Response
      */
-    public function process(\Webman\Http\Request $request, callable $next): \Webman\Http\Response
+    public function process(Request $request, callable $next): Response
     {
         $startTime = microtime(true);
         $project   = config('plugin.hsk99.statistic.app.project');
@@ -34,7 +44,7 @@ class Middleware implements \Webman\MiddlewareInterface
         }
 
         /**
-         * @var \Webman\Http\Response
+         * @var Response
          */
         $response = $next($request);
 
@@ -43,24 +53,24 @@ class Middleware implements \Webman\MiddlewareInterface
 
         static $initialized;
         if (!$initialized) {
-            if (class_exists(\think\facade\Db::class)) {
-                \think\facade\Db::listen(function ($sql, $runtime, $master) {
+            if (class_exists(ThinkDb::class)) {
+                ThinkDb::listen(function ($sql, $runtime, $master) {
                     if ($sql === 'select 1' || !is_numeric($runtime)) {
                         return;
                     }
 
                     // 兼容 webman/log 插件记录Sql日志
                     if (class_exists(\Webman\Log\Middleware::class) && config('plugin.webman.log.app.enable', false)) {
-                        \think\facade\Db::log($sql . " [$master RunTime: " . $runtime * 1000 . " ms]");
+                        ThinkDb::log($sql . " [$master RunTime: " . $runtime * 1000 . " ms]");
                     }
 
                     $this->sqlLogs[] = trim($sql) . " [ RunTime: " . $runtime * 1000 . " ms ]";
                 });
             }
 
-            if (class_exists(\Illuminate\Database\Events\QueryExecuted::class)) {
+            if (class_exists(QueryExecuted::class)) {
                 try {
-                    \support\Db::listen(function (\Illuminate\Database\Events\QueryExecuted $query) {
+                    LaravelDb::listen(function (QueryExecuted $query) {
                         $sql = trim($query->sql);
                         if (strtolower($sql) === 'select 1') {
                             return;
@@ -86,13 +96,13 @@ class Middleware implements \Webman\MiddlewareInterface
                 }
             }
 
-            if (class_exists(\Illuminate\Redis\Events\CommandExecuted::class)) {
+            if (class_exists(CommandExecuted::class)) {
                 foreach (config('redis', []) as $key => $config) {
                     if (strpos($key, 'redis-queue') !== false) {
                         continue;
                     }
                     try {
-                        \support\Redis::connection($key)->listen(function (\Illuminate\Redis\Events\CommandExecuted $command) {
+                        Redis::connection($key)->listen(function (CommandExecuted $command) {
                             foreach ($command->parameters as &$item) {
                                 if (is_array($item)) {
                                     $item = implode('\', \'', $item);
@@ -113,7 +123,7 @@ class Middleware implements \Webman\MiddlewareInterface
 
         switch (true) {
             case method_exists($response, 'exception') && $exception = $response->exception():
-                \Hsk99\WebmanStatistic\Statistic::exception($exception);
+                Statistic::exception($exception);
                 $body = (string)$exception;
                 break;
             case 'application/json' === strtolower($response->getHeader('Content-Type')):
@@ -146,7 +156,7 @@ class Middleware implements \Webman\MiddlewareInterface
         $this->sqlLogs = [];
         $this->redisLogs = [];
 
-        \Hsk99\WebmanStatistic\Statistic::$transfer .= json_encode([
+        Statistic::setTransfer(json_encode([
             'time'     => date('Y-m-d H:i:s.', (int)$startTime) . substr($startTime, 11),
             'project'  => $project,
             'ip'       => $ip,
@@ -155,11 +165,7 @@ class Middleware implements \Webman\MiddlewareInterface
             'success'  => $success ? 1 : 0,
             'code'     => $code,
             'details'  => json_encode($details, 320),
-        ], 320) . "\n";
-
-        if (strlen(\Hsk99\WebmanStatistic\Statistic::$transfer) > 1024 * 1024) {
-            \Hsk99\WebmanStatistic\Statistic::report();
-        }
+        ], 320));
 
         return $response;
     }

@@ -2,12 +2,20 @@
 
 namespace Hsk99\WebmanStatistic;
 
+use Workerman\Worker;
+use Workerman\Timer;
+use Workerman\Http\Client;
+use think\facade\Db as ThinkDb;
+use support\Db as LaravelDb;
+use Illuminate\Database\Events\QueryExecuted;
+use support\Redis;
+use Illuminate\Redis\Events\CommandExecuted;
 use Hsk99\WebmanStatistic\Statistic;
 
 class Bootstrap implements \Webman\Bootstrap
 {
     /**
-     * @var \Workerman\Http\Client
+     * @var Client
      */
     protected static $_instance = null;
 
@@ -20,7 +28,7 @@ class Bootstrap implements \Webman\Bootstrap
      * @author HSK
      * @date 2022-06-17 15:33:53
      *
-     * @param \Workerman\Worker $worker
+     * @param Worker $worker
      *
      * @return void
      */
@@ -35,10 +43,10 @@ class Bootstrap implements \Webman\Bootstrap
                 'connect_timeout'   => 30,  // 连接超时时间
                 'timeout'           => 30,  // 等待响应的超时时间
             ];
-            self::$_instance = new \Workerman\Http\Client($options);
+            self::$_instance = new Client(config('plugin.hsk99.statistic.app.http_options', $options));
 
             // 定时上报数据
-            \Workerman\Timer::add(config('plugin.hsk99.statistic.app.interval', 30), function () {
+            Timer::add(config('plugin.hsk99.statistic.app.interval', 30), function () {
                 Statistic::report();
             });
 
@@ -53,9 +61,9 @@ class Bootstrap implements \Webman\Bootstrap
      * @author HSK
      * @date 2022-06-17 15:34:41
      *
-     * @return \Workerman\Http\Client
+     * @return Client
      */
-    public static function instance(): \Workerman\Http\Client
+    public static function instance(): Client
     {
         return self::$_instance;
     }
@@ -66,14 +74,14 @@ class Bootstrap implements \Webman\Bootstrap
      * @author HSK
      * @date 2022-07-20 17:22:06
      *
-     * @param \Workerman\Worker $worker
+     * @param Worker $worker
      * 
      * @return void
      */
-    protected static function listen(\Workerman\Worker $worker)
+    protected static function listen(Worker $worker)
     {
-        if (class_exists(\think\facade\Db::class)) {
-            \think\facade\Db::listen(function ($sql, $runtime, $master) {
+        if (class_exists(ThinkDb::class)) {
+            ThinkDb::listen(function ($sql, $runtime, $master) {
                 if ($sql === 'select 1' || !is_numeric($runtime)) {
                     return;
                 }
@@ -81,9 +89,9 @@ class Bootstrap implements \Webman\Bootstrap
             });
         }
 
-        if (class_exists(\Illuminate\Database\Events\QueryExecuted::class)) {
+        if (class_exists(QueryExecuted::class)) {
             try {
-                \support\Db::listen(function (\Illuminate\Database\Events\QueryExecuted $query) {
+                LaravelDb::listen(function (QueryExecuted $query) {
                     $sql = trim($query->sql);
                     if (strtolower($sql) === 'select 1') {
                         return;
@@ -109,13 +117,13 @@ class Bootstrap implements \Webman\Bootstrap
             }
         }
 
-        if (class_exists(\Illuminate\Redis\Events\CommandExecuted::class)) {
+        if (class_exists(CommandExecuted::class)) {
             foreach (config('redis', []) as $key => $config) {
                 if (strpos($key, 'redis-queue') !== false) {
                     continue;
                 }
                 try {
-                    \support\Redis::connection($key)->listen(function (\Illuminate\Redis\Events\CommandExecuted $command) {
+                    Redis::connection($key)->listen(function (CommandExecuted $command) {
                         foreach ($command->parameters as &$item) {
                             if (is_array($item)) {
                                 $item = implode('\', \'', $item);

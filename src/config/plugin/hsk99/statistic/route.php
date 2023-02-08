@@ -50,7 +50,7 @@ Route::fallback(function ($request) use (&$oldFallback) {
         'response_body'   => $body,                                                            // 响应数据
     ];
 
-    Statistic::$transfer .= json_encode([
+    Statistic::setTransfer(json_encode([
         'time'     => date('Y-m-d H:i:s.', (int)$startTime) . substr($startTime, 11),
         'project'  => $project,
         'ip'       => $ip,
@@ -59,11 +59,7 @@ Route::fallback(function ($request) use (&$oldFallback) {
         'success'  => $success ? 1 : 0,
         'code'     => $code,
         'details'  => json_encode($details, 320),
-    ], 320) . "\n";
-
-    if (strlen(\Hsk99\WebmanStatistic\Statistic::$transfer) > 1024 * 1024) {
-        \Hsk99\WebmanStatistic\Statistic::report();
-    }
+    ], 320));
 
     return $response;
 });
