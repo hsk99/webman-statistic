@@ -25,7 +25,7 @@ Route::fallback(function ($request) use (&$oldFallback) {
             \Hsk99\WebmanStatistic\Statistic::exception($exception);
             $body = (string)$exception;
             break;
-        case 'application/json' === strtolower($response->getHeader('Content-Type')):
+        case !empty($response->getHeader('Content-Type')) && 'application/json' === strtolower($response->getHeader('Content-Type')):
             $body = json_decode($response->rawBody(), true);
             break;
         default:
